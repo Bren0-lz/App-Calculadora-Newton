@@ -1,8 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_application_1_teste/util/teclado_numerico.dart';
 import 'package:flutter_application_1_teste/util/campo_de_texto.dart';
 import 'calculo.dart'; // Importa o cálculo de Newton
+
+void main() {
+  runApp(const MaterialApp(
+    debugShowCheckedModeBanner: false,
+    home: PaginaTeste(),
+  ));
+}
 
 class PaginaTeste extends StatefulWidget {
   const PaginaTeste({super.key});
@@ -12,82 +20,92 @@ class PaginaTeste extends StatefulWidget {
 }
 
 class _EstadoPaginaTeste extends State<PaginaTeste> {
-  // Nós de foco para os campos de texto
-  final FocusNode _focusFuncao = FocusNode();
-  final FocusNode _focusX1 = FocusNode();
-  final FocusNode _focusAproximacao = FocusNode();
-
-  // Estado dos campos de texto
-  String campoSelecionado = 'funcao';
+  // --- Estados dos campos de texto (Mantidos) ---
+  String campoSelecionado = 'funcao'; // 'funcao', 'x1' (X0), 'aproximacao'
   String campoDeFuncao = '';
   String campoDoX1 = '';
   String campoDeAproximacao = '';
+  String resultado = ''; // Armazena o resultado do cálculo de Newton
 
-  // Posições do cursor
+  // --- Posições do cursor (Mantidas) ---
   int cursorPosFuncao = 0;
   int cursorPosX1 = 0;
   int cursorPosAproximacao = 0;
 
-  // Controle do cursor piscando
+  // --- Controle do cursor (Mantido) ---
   bool _mostrarCursor = true;
   Timer? _timerCursor;
 
-  // Teclado numérico e funções matemáticas
-  final List<String> tecladoNumerico = [
+  // NOVO: Controla se a gaveta de funções extras está visível
+  bool _gavetaAberta = false;
+
+// --- Paleta de Cores ---
+  final Color _corFundoPreto = const Color(0xFF121212);
+  final Color _corAzulDisplay = const Color(0xFF2D85C4);
+
+  final Color _corBtnNumero = const Color(0xFFE3F2FD);
+  final Color _corBtnOperador = const Color(0xFFBBDEFB);
+  final Color _corBtnX = const Color(0xFF90CAF9);
+
+  // NOVAS CORES:
+  final Color _corBtnDelete = const Color(0xFFEF9A9A); // Vermelho claro suave
+  final Color _corBtnEnter = const Color(0xFFA5D6A7); // Verde claro suave
+
+  // --- NOVO Layout do Teclado (5x4) ---
+  final List<String> novoTeclado = [
+    'X',
+    '+',
+    '7',
+    '8',
+    '9',
+    '^',
+    '-',
+    '4',
+    '5',
+    '6',
+    '()',
+    '*',
+    '1',
+    '2',
+    '3',
+    '/',
+    '.',
+    '⌫',
+    '0',
+    '↵',
+  ];
+
+  final List<String> funcoesAvancadas = [
     'sen',
     'cos',
+    'tg',
     'mod',
     'csc',
     'sec',
     'cot',
-    'tg',
     '√',
     'ln',
     'log',
-    '<-',
-    '->',
-    '+',
-    '-',
-    '7',
-    '8',
-    '9',
-    'AC',
-    '*',
-    'x',
-    '4',
-    '5',
-    '6',
-    'DEL',
-    '/',
-    '^',
-    '1',
-    '2',
-    '3',
-    'PROX',
     'e',
     'π',
-    '.',
-    '0',
-    '(',
-    ')',
   ];
 
   @override
   void initState() {
     super.initState();
     _iniciarCursorPiscando();
+    // Define a cor da barra de status do sistema
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light.copyWith(
+      statusBarColor: _corAzulDisplay,
+    ));
   }
 
   @override
   void dispose() {
     _timerCursor?.cancel();
-    _focusFuncao.dispose();
-    _focusX1.dispose();
-    _focusAproximacao.dispose();
     super.dispose();
   }
 
-  // Inicia o timer para o cursor piscar
   void _iniciarCursorPiscando() {
     _timerCursor = Timer.periodic(const Duration(milliseconds: 500), (timer) {
       setState(() {
@@ -96,280 +114,484 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
     });
   }
 
-  // Retorna o texto com o cursor na posição correta
   String _getTextoComCursor(String texto, int posCursor, bool mostrarCursor) {
     if (!mostrarCursor) return texto;
-    return texto.substring(0, posCursor) + '|' + texto.substring(posCursor);
+    // Usa um caractere de cursor mais sutil
+    return '${texto.substring(0, posCursor)}|${texto.substring(posCursor)}';
   }
 
-  // Lógica para quando um botão é pressionado
+  // --- NOVA Função auxiliar para obter o texto e rótulo do campo atual ---
+  (String label, String valorComCursor) _getDadosCampoAtual() {
+    String texto = '';
+    int cursor = 0;
+    String label = '';
+
+    switch (campoSelecionado) {
+      case 'funcao':
+        texto = campoDeFuncao;
+        cursor = cursorPosFuncao;
+        label = 'f(x) =';
+        break;
+      case 'x1':
+        texto = campoDoX1;
+        cursor = cursorPosX1;
+        label = 'X0 =';
+        break;
+      case 'aproximacao':
+        texto = campoDeAproximacao;
+        cursor = cursorPosAproximacao;
+        label = 'Aprox =';
+        break;
+    }
+    return (label, _getTextoComCursor(texto, cursor, _mostrarCursor));
+  }
+
+  // --- Lógica do botão simplificada para o novo teclado ---
   void botaoFoiApertado(String botao) {
     setState(() {
-      if (botao == 'DEL') {
-        // Lógica para deletar caracteres
-        if (campoSelecionado == 'funcao' &&
-            campoDeFuncao.isNotEmpty &&
-            cursorPosFuncao > 0) {
-          campoDeFuncao = campoDeFuncao.substring(0, cursorPosFuncao - 1) +
-              campoDeFuncao.substring(cursorPosFuncao);
-          cursorPosFuncao--;
-        } else if (campoSelecionado == 'x1' &&
-            campoDoX1.isNotEmpty &&
-            cursorPosX1 > 0) {
-          campoDoX1 = campoDoX1.substring(0, cursorPosX1 - 1) +
-              campoDoX1.substring(cursorPosX1);
-          cursorPosX1--;
-        } else if (campoSelecionado == 'aproximacao' &&
-            campoDeAproximacao.isNotEmpty &&
-            cursorPosAproximacao > 0) {
-          campoDeAproximacao =
-              campoDeAproximacao.substring(0, cursorPosAproximacao - 1) +
-                  campoDeAproximacao.substring(cursorPosAproximacao);
-          cursorPosAproximacao--;
+      // Referências para o campo e cursor ativos
+      String textoAtual;
+      int posCursorAtual;
+
+      if (campoSelecionado == 'funcao') {
+        textoAtual = campoDeFuncao;
+        posCursorAtual = cursorPosFuncao;
+      } else if (campoSelecionado == 'x1') {
+        textoAtual = campoDoX1;
+        posCursorAtual = cursorPosX1;
+      } else {
+        textoAtual = campoDeAproximacao;
+        posCursorAtual = cursorPosAproximacao;
+      }
+
+      // Lógica de ação
+      if (botao == '⌫') {
+        if (textoAtual.isNotEmpty && posCursorAtual > 0) {
+          textoAtual = textoAtual.substring(0, posCursorAtual - 1) +
+              textoAtual.substring(posCursorAtual);
+          posCursorAtual--;
         }
-      } else if (botao == '<-') {
-        // Move o cursor para a esquerda
-        if (campoSelecionado == 'funcao' && cursorPosFuncao > 0) {
-          cursorPosFuncao--;
-        } else if (campoSelecionado == 'x1' && cursorPosX1 > 0) {
-          cursorPosX1--;
-        } else if (campoSelecionado == 'aproximacao' &&
-            cursorPosAproximacao > 0) {
-          cursorPosAproximacao--;
-        }
-      } else if (botao == '->') {
-        // Move o cursor para a direita
-        if (campoSelecionado == 'funcao' &&
-            cursorPosFuncao < campoDeFuncao.length) {
-          cursorPosFuncao++;
-        } else if (campoSelecionado == 'x1' && cursorPosX1 < campoDoX1.length) {
-          cursorPosX1++;
-        } else if (campoSelecionado == 'aproximacao' &&
-            cursorPosAproximacao < campoDeAproximacao.length) {
-          cursorPosAproximacao++;
-        }
-      } else if (botao == 'PROX') {
-        // Alterna entre os campos de texto
+      } else if (botao == '↵') {
         if (campoSelecionado == 'funcao') {
           campoSelecionado = 'x1';
-          _focusX1.requestFocus();
         } else if (campoSelecionado == 'x1') {
           campoSelecionado = 'aproximacao';
-          _focusAproximacao.requestFocus();
         } else if (campoSelecionado == 'aproximacao') {
-          campoSelecionado = 'funcao';
-          _focusFuncao.requestFocus();
+          // SE ESTIVER NO ÚLTIMO CAMPO: CALCULA
+          _executarCalculo();
         }
-      } else if (botao == 'AC') {
-        // Limpa o campo selecionado
-        if (campoSelecionado == 'funcao') {
-          campoDeFuncao = '';
-          cursorPosFuncao = 0;
-        } else if (campoSelecionado == 'x1') {
-          campoDoX1 = '';
-          cursorPosX1 = 0;
-        } else if (campoSelecionado == 'aproximacao') {
-          campoDeAproximacao = '';
-          cursorPosAproximacao = 0;
-        }
+        return;
       } else {
-        // Insere o texto do botão no campo selecionado
-        if (campoSelecionado == 'funcao') {
-          campoDeFuncao = campoDeFuncao.substring(0, cursorPosFuncao) +
-              botao +
-              campoDeFuncao.substring(cursorPosFuncao);
-          cursorPosFuncao += botao.length;
-        } else if (campoSelecionado == 'x1') {
-          campoDoX1 = campoDoX1.substring(0, cursorPosX1) +
-              botao +
-              campoDoX1.substring(cursorPosX1);
-          cursorPosX1 += botao.length;
-        } else if (campoSelecionado == 'aproximacao') {
-          campoDeAproximacao =
-              campoDeAproximacao.substring(0, cursorPosAproximacao) +
-                  botao +
-                  campoDeAproximacao.substring(cursorPosAproximacao);
-          cursorPosAproximacao += botao.length;
-        }
+        // Inserção de caracteres (números, operadores, X, (), .)
+        String textoParaInserir = botao;
+        // Se o botão for 'X', insere a variável 'x' minúscula
+        if (botao == 'X') textoParaInserir = 'x';
+
+        textoAtual = textoAtual.substring(0, posCursorAtual) +
+            textoParaInserir +
+            textoAtual.substring(posCursorAtual);
+        posCursorAtual += textoParaInserir.length;
+      }
+
+      // Atualiza o estado do campo correto
+      if (campoSelecionado == 'funcao') {
+        campoDeFuncao = textoAtual;
+        cursorPosFuncao = posCursorAtual;
+      } else if (campoSelecionado == 'x1') {
+        campoDoX1 = textoAtual;
+        cursorPosX1 = posCursorAtual;
+      } else {
+        campoDeAproximacao = textoAtual;
+        cursorPosAproximacao = posCursorAtual;
       }
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.deepPurple[300],
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                _CampoComRotulo(
-                  rotulo: 'f(x) = ',
-                  texto: _getTextoComCursor(
-                    campoDeFuncao,
-                    cursorPosFuncao,
-                    campoSelecionado == 'funcao' && _mostrarCursor,
-                  ),
-                  focusNode: _focusFuncao,
-                  onFocusChange: (hasFocus) {
-                    if (hasFocus) setState(() => campoSelecionado = 'funcao');
-                  },
-                ),
-                const SizedBox(height: 8),
-                _CampoComRotulo(
-                  rotulo: 'X0 = ',
-                  texto: _getTextoComCursor(
-                    campoDoX1,
-                    cursorPosX1,
-                    campoSelecionado == 'x1' && _mostrarCursor,
-                  ),
-                  focusNode: _focusX1,
-                  onFocusChange: (hasFocus) {
-                    if (hasFocus) setState(() => campoSelecionado = 'x1');
-                  },
-                ),
-                const SizedBox(height: 8),
-                _CampoComRotulo(
-                  rotulo: 'Aprox = ',
-                  texto: _getTextoComCursor(
-                    campoDeAproximacao,
-                    cursorPosAproximacao,
-                    campoSelecionado == 'aproximacao' && _mostrarCursor,
-                  ),
-                  focusNode: _focusAproximacao,
-                  onFocusChange: (hasFocus) {
-                    if (hasFocus)
-                      setState(() => campoSelecionado = 'aproximacao');
-                  },
-                ),
-              ],
+  // Função para executar o cálculo (antigo botão "Calcular")
+  void _executarCalculo() {
+    if (campoDeFuncao.isNotEmpty &&
+        campoDoX1.isNotEmpty &&
+        campoDeAproximacao.isNotEmpty) {
+      // Substitua pelo seu método de cálculo real
+      print(
+          "Calculando: f(x)=$campoDeFuncao, X0=$campoDoX1, Aprox=$campoDeAproximacao");
+      // calcularRaizNewton(context, campoDeFuncao, campoDoX1, campoDeAproximacao);
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Calculando... (Verifique o console)')));
+    } else {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Erro', style: TextStyle(color: Colors.black)),
+          content: const Text(
+              'Preencha todos os campos (f(x), X0 e Aprox) antes de calcular.',
+              style: TextStyle(color: Colors.black)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
             ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (campoDeFuncao.isNotEmpty &&
-                  campoDoX1.isNotEmpty &&
-                  campoDeAproximacao.isNotEmpty) {
-                calcularRaizNewton(
-                  context,
-                  campoDeFuncao,
-                  campoDoX1,
-                  campoDeAproximacao,
-                );
-              } else {
-                showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text('Erro'),
-                    content: const Text(
-                        'Preencha todos os campos antes de calcular.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('OK'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-            },
-            child: const Text('Calcular'),
-          ),
-          const Spacer(),
-          Container(
-            color: Colors.deepPurple,
-            child: GridView.builder(
-              shrinkWrap: true,
-              itemCount: tecladoNumerico.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 6,
+          ],
+        ),
+      );
+    }
+  }
+
+  void _abrirGaveta(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _corFundoPreto,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          height: MediaQuery.of(context).size.height * 0.4, // 40% da tela
+          child: Column(
+            children: [
+              // "Alça" para indicar que pode puxar/fechar
+              Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[600],
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-              itemBuilder: (context, index) {
-                return meuBotao(
-                  child: tecladoNumerico[index],
-                  onTap: () {
-                    botaoFoiApertado(tecladoNumerico[index]);
+              const SizedBox(height: 20),
+              Expanded(
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4, // 4 botões por linha na gaveta
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemCount: funcoesAvancadas.length,
+                  itemBuilder: (context, index) {
+                    return _BotaoArredondado(
+                      label: funcoesAvancadas[index],
+                      color: _corBtnOperador,
+                      onTap: () {
+                        botaoFoiApertado(funcoesAvancadas[index]);
+                        Navigator.pop(context); // Fecha a gaveta
+                      },
+                    );
                   },
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
-        ],
+        );
+      },
+    );
+  }
+
+  // Função para determinar a cor do botão
+  Color _getCorBotao(String label) {
+    if (label == 'X') return _corBtnX;
+
+    // NOVAS VERIFICAÇÕES:
+    if (label == '⌫') return _corBtnDelete; // Vermelho para deletar
+    if (label == '↵') return _corBtnEnter; // Verde para enter/próximo
+
+    if ('+-*/^().'.contains(label) || label == '()') {
+      return _corBtnOperador;
+    }
+    return _corBtnNumero;
+  }
+
+  Widget _buildLinhaDisplay({
+    required String label,
+    required String valor,
+    required String campoID,
+    required double fontSize,
+  }) {
+    bool estaAtivo = campoSelecionado == campoID;
+
+    int posCursor = 0;
+    if (campoID == 'funcao') posCursor = cursorPosFuncao;
+    if (campoID == 'x1') posCursor = cursorPosX1;
+    if (campoID == 'aproximacao') posCursor = cursorPosAproximacao;
+
+    return GestureDetector(
+      // Detecta o toque em qualquer lugar da linha
+      onTap: () {
+        setState(() {
+          campoSelecionado = campoID;
+          // Opcional: Limpar o resultado anterior ao começar a editar
+          resultado = '';
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        decoration: BoxDecoration(
+          // Adiciona um fundo sutil apenas no campo ativo para feedback visual
+          color:
+              estaAtivo ? Colors.white.withOpacity(0.05) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(estaAtivo ? 0.9 : 0.4),
+                fontSize: fontSize * 0.7,
+                fontStyle: FontStyle.italic,
+                fontFamily: 'Arial',
+              ),
+            ),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  estaAtivo
+                      ? _getTextoComCursor(valor, posCursor, _mostrarCursor)
+                      : valor.isEmpty
+                          ? "0"
+                          : valor,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(estaAtivo ? 1.0 : 0.6),
+                    fontSize: fontSize,
+                    fontWeight: estaAtivo ? FontWeight.w500 : FontWeight.w300,
+                    fontFamily: 'Arial',
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final dadosCampoAtual = _getDadosCampoAtual();
+
+    return Scaffold(
+        backgroundColor: _corFundoPreto,
+        // Appbar "invisível" só para definir a cor da área da status bar
+        appBar: AppBar(
+          toolbarHeight: 0,
+          backgroundColor: _corAzulDisplay,
+          elevation: 0,
+        ),
+        body: Column(
+          children: [
+            // --- 1. Área do DISPLAY MULTILINHA ---
+            Expanded(
+              flex: 5,
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: _corAzulDisplay,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(45),
+                    bottomRight: Radius.circular(45),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(
+                    28, 40, 28, 20), // Padding ajustado para o topo
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment
+                        .center, // Centraliza os campos verticalmente
+                    children: [
+                      _buildLinhaDisplay(
+                        label: "f(x) = ",
+                        valor: campoDeFuncao,
+                        campoID: 'funcao',
+                        fontSize: 32,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildLinhaDisplay(
+                        label: "X0 = ",
+                        valor: campoDoX1,
+                        campoID: 'x1',
+                        fontSize: 32,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildLinhaDisplay(
+                        label: "Aprox = ",
+                        valor: campoDeAproximacao,
+                        campoID: 'aproximacao',
+                        fontSize: 32,
+                      ),
+
+                      // LINHA DE RESULTADO
+                      if (resultado.isNotEmpty) ...[
+                        const Divider(color: Colors.white24, height: 30),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            const Text(
+                              "Raiz ≈ ",
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 22,
+                                fontStyle: FontStyle.italic,
+                                fontFamily: 'Arial',
+                              ),
+                            ),
+                            Text(
+                              resultado,
+                              style: const TextStyle(
+                                color: Color(
+                                    0xFFFFF176), // Amarelo claro para destacar
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Arial',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ]),
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            // --- 2. Botão da Gaveta (Seta) ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30.0),
+              child: Container(
+                height: 45,
+                decoration: BoxDecoration(
+                  color: _corFundoPreto,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _corAzulDisplay.withOpacity(0.2)),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => setState(() => _gavetaAberta = !_gavetaAberta),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Center(
+                      child: AnimatedRotation(
+                        turns: _gavetaAberta ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 300),
+                        child: Icon(Icons.keyboard_arrow_down_rounded,
+                            color: _corAzulDisplay, size: 32),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // --- 3. Área do Teclado (Mantida a proporção fixa) ---
+            Expanded(
+              flex: 6,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Stack(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+                        child: GridView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: novoTeclado.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 5,
+                            crossAxisSpacing: 14,
+                            mainAxisSpacing: 14,
+                            childAspectRatio: 1.1,
+                          ),
+                          itemBuilder: (context, index) {
+                            final label = novoTeclado[index];
+                            return _BotaoArredondado(
+                              label: label,
+                              color: _getCorBotao(label),
+                              onTap: () => botaoFoiApertado(label),
+                            );
+                          },
+                        ),
+                      ),
+
+                      // Gaveta de Funções (Mantida)
+                      ClipRect(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 350),
+                          curve: Curves.easeOutCubic,
+                          height: _gavetaAberta ? constraints.maxHeight : 0,
+                          width: double.infinity,
+                          color: _corFundoPreto,
+                          padding: const EdgeInsets.all(20.0),
+                          child: GridView.builder(
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4,
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 14,
+                              childAspectRatio: 1.4,
+                            ),
+                            itemCount: funcoesAvancadas.length,
+                            itemBuilder: (context, index) {
+                              return _BotaoArredondado(
+                                label: funcoesAvancadas[index],
+                                color: _corBtnOperador.withOpacity(0.8),
+                                onTap: () {
+                                  botaoFoiApertado(funcoesAvancadas[index]);
+                                  setState(() => _gavetaAberta = false);
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ));
+  }
 }
 
-class _CampoComRotulo extends StatelessWidget {
-  final String rotulo;
-  final String texto;
-  final FocusNode focusNode;
-  final Function(bool) onFocusChange;
+class _BotaoArredondado extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
 
-  const _CampoComRotulo({
-    required this.rotulo,
-    required this.texto,
-    required this.focusNode,
-    required this.onFocusChange,
+  const _BotaoArredondado({
+    required this.label,
+    required this.color,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      focusNode: focusNode,
-      onFocusChange: onFocusChange,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Text(
-            rotulo,
+    return Material(
+      color: color,
+      // Define o arredondamento das bordas.
+      // 16 a 20 costuma ser o padrão para o visual do Figma.
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        // É essencial repetir o borderRadius aqui para o efeito de clique
+        borderRadius: BorderRadius.circular(16),
+        child: Center(
+          child: Text(
+            label,
             style: TextStyle(
-              fontSize: 30, // Maior visibilidade
-              fontWeight: FontWeight.bold, // Negrito
-              fontStyle: FontStyle.italic, // Itálico
-              color: Colors.white, // Melhor contraste
-              shadows: [
-                Shadow(
-                  offset: Offset(1, 1),
-                  blurRadius: 2,
-                  color: Colors.black.withOpacity(0.5),
-                ),
-              ],
+              fontSize: label.length > 2
+                  ? 20
+                  : 26, // Diminui a fonte se o texto for longo (ex: PROX)
+              fontWeight: FontWeight.w600,
+              color: const Color(
+                  0xFF1A237E), // Um azul marinho bem escuro fica mais elegante que o preto puro
             ),
           ),
-          const SizedBox(width: 8), // Espaço entre rótulo e campo
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: focusNode.hasFocus ? Colors.blue : Colors.grey,
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                texto.isEmpty ? "" : texto, // Placeholder
-                style: TextStyle(
-                  fontSize: 20, // Aumentar fonte
-                  fontWeight: FontWeight.bold, // Negrito
-                  fontFamily: 'Courier', // Fonte Monospace
-                  color: Colors.white, // Melhor contraste
-                  shadows: [
-                    Shadow(
-                      offset: Offset(1, 1),
-                      blurRadius: 2,
-                      color: Colors.black.withOpacity(0.5),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
