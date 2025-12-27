@@ -1,34 +1,35 @@
-# flutter_application_1_teste
+# Newton Finder - Calculadora de Raízes (Método de Newton-Raphson)
 
-A new Flutter project.
+![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)
+![Dart](https://img.shields.io/badge/dart-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white)
 
-## Getting Started
+O **Newton Finder** é um aplicativo mobile desenvolvido em **Flutter** para o cálculo numérico de raízes de funções utilizando o **Método de Newton-Raphson**.
 
-This project is a starting point for a Flutter application.
+## O Método de Newton-Raphson
 
-A few resources to get you started if this is your first Flutter project:
+O aplicativo resolve equações do tipo $f(x) = 0$ utilizando a iteração matemática:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+$$x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)}$$
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-=======
+## Tecnologias Utilizadas
 
-# flutter_application_1_teste
+- **Framework**: Flutter
+- **Linguagem**: Dart
+- **Componentes**: LayoutBuilder, AnimatedContainer, AnimatedDefaultTextStyle e Text.rich.
 
-A new Flutter project.
+## Como rodar o projeto
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+1. **Clone o repositório:**
+   ```bash
+   git clone [https://github.com/SEU-USUARIO/App-Calculadora-Newton.git](https://github.com/SEU-USUARIO/App-Calculadora-Newton.git)
+   
+2. **Instale as dependências:**
+   ```bash
+   flutter pub get
+   
+3. **Execute o aplicativo:**
+   ```bash
+   flutter run
+   
+## Autor
+* **Breno Luiz** - [Bren0-lz](https://github.com/Bren0-lz)
