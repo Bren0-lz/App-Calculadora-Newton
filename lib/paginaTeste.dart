@@ -305,9 +305,13 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
     required String label,
     required String valor,
     required String campoID,
-    required double fontSize,
   }) {
     bool estaAtivo = campoSelecionado == campoID;
+
+    // NOVAS PROPORÇÕES: Mais equilibradas para leitura
+    double tamanhoFonte = estaAtivo ? 45 : 32;
+    double opacidade =
+        estaAtivo ? 1.0 : 0.5; // Aumentei a opacidade inativa também
 
     int posCursor = 0;
     if (campoID == 'funcao') posCursor = cursorPosFuncao;
@@ -315,49 +319,58 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
     if (campoID == 'aproximacao') posCursor = cursorPosAproximacao;
 
     return GestureDetector(
-      // Detecta o toque em qualquer lugar da linha
-      onTap: () {
-        setState(() {
-          campoSelecionado = campoID;
-          // Opcional: Limpar o resultado anterior ao começar a editar
-          resultado = '';
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        decoration: BoxDecoration(
-          // Adiciona um fundo sutil apenas no campo ativo para feedback visual
-          color:
-              estaAtivo ? Colors.white.withOpacity(0.05) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
+      onTap: () => setState(() => campoSelecionado = campoID),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic, // Curva de animação mais suave
+        padding:
+            EdgeInsets.symmetric(vertical: estaAtivo ? 8 : 4, horizontal: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
-            Text(
-              label,
+            // Rótulo animado (f(x), X0, etc)
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 300),
               style: TextStyle(
-                color: Colors.white.withOpacity(estaAtivo ? 0.9 : 0.4),
-                fontSize: fontSize * 0.7,
+                color: Colors.white.withOpacity(opacidade * 0.6),
+                fontSize:
+                    tamanhoFonte * 0.6, // Segue o tamanho da fonte principal
                 fontStyle: FontStyle.italic,
                 fontFamily: 'Arial',
               ),
+              child: Text(label),
             ),
+            const SizedBox(width: 12),
+            // Valor animado com Cursor Estável
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerRight,
-                child: Text(
-                  estaAtivo
-                      ? _getTextoComCursor(valor, posCursor, _mostrarCursor)
-                      : valor.isEmpty
-                          ? "0"
-                          : valor,
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 300),
                   style: TextStyle(
-                    color: Colors.white.withOpacity(estaAtivo ? 1.0 : 0.6),
-                    fontSize: fontSize,
-                    fontWeight: estaAtivo ? FontWeight.w500 : FontWeight.w300,
+                    color: Colors.white.withOpacity(opacidade),
+                    fontSize: tamanhoFonte,
+                    fontWeight: estaAtivo ? FontWeight.bold : FontWeight.w400,
                     fontFamily: 'Arial',
+                  ),
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: valor.substring(0, posCursor)),
+                        TextSpan(
+                          text: '|',
+                          style: TextStyle(
+                            color: (estaAtivo && _mostrarCursor)
+                                ? Colors.white
+                                : Colors.transparent,
+                          ),
+                        ),
+                        TextSpan(text: valor.substring(posCursor)),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -383,6 +396,7 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
         body: Column(
           children: [
             // --- 1. Área do DISPLAY MULTILINHA ---
+            // --- 1. Área do DISPLAY DINÂMICO ---
             Expanded(
               flex: 5,
               child: Container(
@@ -394,63 +408,43 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
                     bottomRight: Radius.circular(45),
                   ),
                 ),
-                padding: const EdgeInsets.fromLTRB(
-                    28, 40, 28, 20), // Padding ajustado para o topo
+                padding: const EdgeInsets.fromLTRB(28, 40, 28, 20),
                 child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: MainAxisAlignment
-                        .center, // Centraliza os campos verticalmente
-                    children: [
-                      _buildLinhaDisplay(
-                        label: "f(x) = ",
-                        valor: campoDeFuncao,
-                        campoID: 'funcao',
-                        fontSize: 32,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildLinhaDisplay(
-                        label: "X0 = ",
-                        valor: campoDoX1,
-                        campoID: 'x1',
-                        fontSize: 32,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildLinhaDisplay(
-                        label: "Aprox = ",
-                        valor: campoDeAproximacao,
-                        campoID: 'aproximacao',
-                        fontSize: 32,
-                      ),
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  // EMPURRA TUDO PARA BAIXO (Próximo ao botão da seta/teclado)
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _buildLinhaDisplay(
+                      label: "f(x) = ",
+                      valor: campoDeFuncao,
+                      campoID: 'funcao',
+                    ),
+                    _buildLinhaDisplay(
+                      label: "X0 = ",
+                      valor: campoDoX1,
+                      campoID: 'x1',
+                    ),
+                    _buildLinhaDisplay(
+                      label: "Aprox = ",
+                      valor: campoDeAproximacao,
+                      campoID: 'aproximacao',
+                    ),
 
-                      // LINHA DE RESULTADO
-                      if (resultado.isNotEmpty) ...[
-                        const Divider(color: Colors.white24, height: 30),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            const Text(
-                              "Raiz ≈ ",
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 22,
-                                fontStyle: FontStyle.italic,
-                                fontFamily: 'Arial',
-                              ),
-                            ),
-                            Text(
-                              resultado,
-                              style: const TextStyle(
-                                color: Color(
-                                    0xFFFFF176), // Amarelo claro para destacar
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Arial',
-                              ),
-                            ),
-                          ],
+                    // O resultado aparece fixo no pé do display se existir
+                    if (resultado.isNotEmpty) ...[
+                      const Divider(color: Colors.white24),
+                      Text(
+                        "Raiz ≈ $resultado",
+                        style: const TextStyle(
+                          color: Color(0xFFFFF176),
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Arial',
                         ),
-                      ],
-                    ]),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
 
