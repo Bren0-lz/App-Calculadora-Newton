@@ -174,6 +174,28 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
     }
   }
 
+  void _limparTudo() {
+    setState(() {
+      campoDeFuncao = '';
+      campoDoX1 = '';
+      campoDeAproximacao = '';
+      resultado = '';
+      _historico = []; // Limpa também a tabela de iterações
+      cursorPosFuncao = 0;
+      cursorPosX1 = 0;
+      cursorPosAproximacao = 0;
+      campoSelecionado = 'funcao'; // Volta o foco para o início
+    });
+
+    // Feedback tátil ou visual opcional
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Sistema reiniciado!'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
   // --- Componentes do Display ---
 
   Widget _buildLinhaDisplay(
@@ -483,6 +505,8 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
                             label: label,
                             color: _getCorBotao(label),
                             onTap: () => botaoFoiApertado(label),
+                            // Se o botão for o de apagar, adiciona o clique longo
+                            onLongPress: label == '⌫' ? _limparTudo : null,
                           );
                         },
                       ),
