@@ -48,25 +48,27 @@ class NewtonLogic {
     return latex;
   }
 
+  // Agora recebemos a Expression diretamente, sem precisar de novo Parser
   static ResultadoNewton calcularRaiz(
-      String fString, String x0String, String aproxString) {
+      Expression exp, double x0, double tolerancia) {
     List<IteracaoNewton> historico = [];
     try {
-      Parser p = Parser();
       ContextModel cm = ContextModel();
       Variable x = Variable('x');
-      Expression exp = p.parse(fString);
+
+      // A derivada agora é gerada diretamente da Expression recebida
       Expression derivada = exp.derive('x');
 
-      double xn = double.parse(x0String.replaceAll(',', '.'));
-      double tolerancia = double.parse(aproxString.replaceAll(',', '.'));
+      // DEBUG: Veja no console o que ele gerou como derivada
+      print("DEBUG LOGIC: Expressão original: $exp");
+      print("DEBUG LOGIC: Derivada gerada: $derivada");
 
+      double xn = x0;
       int i = 0;
       while (i < 50) {
         cm.bindVariable(x, Number(xn));
         double fx = exp.evaluate(EvaluationType.REAL, cm);
 
-        // Salvamos a iteração atual
         historico.add(IteracaoNewton(i, xn, fx));
 
         double fDashx = derivada.evaluate(EvaluationType.REAL, cm);
@@ -75,11 +77,10 @@ class NewtonLogic {
 
         double proxXn = xn - (fx / fDashx);
         if ((proxXn - xn).abs() < tolerancia) {
+          // Última iteração de sucesso
+          cm.bindVariable(x, Number(proxXn));
           historico.add(IteracaoNewton(
-              i + 1,
-              proxXn,
-              exp.evaluate(
-                  EvaluationType.REAL, cm..bindVariable(x, Number(proxXn)))));
+              i + 1, proxXn, exp.evaluate(EvaluationType.REAL, cm)));
           return ResultadoNewton(proxXn.toStringAsFixed(6), historico);
         }
         xn = proxXn;
@@ -87,7 +88,7 @@ class NewtonLogic {
       }
       return ResultadoNewton(xn.toStringAsFixed(6), historico);
     } catch (e) {
-      return ResultadoNewton("Erro de Sintaxe", []);
+      return ResultadoNewton("Erro no Cálculo: $e", []);
     }
   }
 }

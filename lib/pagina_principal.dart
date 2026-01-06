@@ -1,8 +1,7 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'widgets/botao_calculadora.dart'; // Import do componente refatorado
 import 'logic/newton_logic.dart'; // Import da lógica de cálculo
 import 'package:math_keyboard/math_keyboard.dart';
+import 'package:math_expressions/math_expressions.dart';
 
 class PaginaTeste extends StatefulWidget {
   const PaginaTeste({super.key});
@@ -52,6 +51,7 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
     required FocusNode focusNode,
     required String campoID,
     required String hint,
+    required Function(String) aoMudar, // Adicione este parâmetro
   }) {
     bool estaAtivo = campoAtivo == campoID;
 
@@ -78,7 +78,8 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
               ),
               child: MathField(
                 controller: controller,
-                focusNode: focusNode, // SOLUÇÃO DO 'onTap'
+                focusNode: focusNode,
+                onChanged: aoMudar,
                 variables: const ['x'],
                 decoration: InputDecoration(
                   hintText: hint,
@@ -181,6 +182,52 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
     );
   }
 
+  // Variáveis para guardar o texto puro (LaTeX)
+  String _funcaoRaw = 'x^{2}-4';
+  String _x0Raw = '1';
+  String _aproxRaw = '0.001';
+
+  void _executarCalculo() {
+    // 1. Verificação rigorosa
+    if (_funcaoRaw.isEmpty ||
+        _funcaoRaw == '{}' ||
+        _x0Raw.isEmpty ||
+        _aproxRaw.isEmpty) {
+      _mostrarErro("Preencha todos os campos antes de calcular.");
+      return;
+    }
+
+    try {
+      // 2. Forçar minúsculas para o 'x' não ser lido como constante 'X'
+      final String fProcessada = _funcaoRaw.toLowerCase();
+
+      // 3. Conversão segura para o motor de cálculo
+      final Expression fExpression = TeXParser(fProcessada).parse();
+      final double x0 = double.parse(TeXParser(_x0Raw).parse().toString());
+      final double aprox =
+          double.parse(TeXParser(_aproxRaw).parse().toString());
+
+      // Debug para conferirmos se agora a ordem está certa
+      print("DEBUG: Calculando f(x)=$fExpression com x0=$x0");
+
+      ResultadoNewton resultado =
+          NewtonLogic.calcularRaiz(fExpression, x0, aprox);
+
+      setState(() => _historico = resultado.historico);
+      _mostrarTabelaIteracoes(context);
+    } catch (e) {
+      print("ERRO DE ENGENHARIA: $e");
+      _mostrarErro(
+          "Erro de sintaxe. Algum campo pode estar incorreto ou vazio.");
+    }
+  }
+
+  void _mostrarErro(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Verificamos se algum dos campos está com foco real
@@ -220,6 +267,7 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
                       focusNode: _focusFuncao,
                       campoID: 'funcao',
                       hint: "x^2 - 4",
+                      aoMudar: (val) => _funcaoRaw = val,
                     ),
                     _buildLinhaMatematica(
                       label: "X0 = ",
@@ -227,6 +275,7 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
                       focusNode: _focusX1,
                       campoID: 'x1',
                       hint: "1.0",
+                      aoMudar: (val) => _x0Raw = val,
                     ),
                     _buildLinhaMatematica(
                       label: "Aprox = ",
@@ -234,6 +283,7 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
                       focusNode: _focusAprox,
                       campoID: 'aproximacao',
                       hint: "0.001",
+                      aoMudar: (val) => _aproxRaw = val,
                     ),
                   ],
                 ),
@@ -241,20 +291,57 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
             ),
 
             // --- 2. ÁREA DOS BOTÕES (Seu teclado customizado) ---
-            if (!tecladoAberto)
-              Expanded(
-                flex: 7,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // Aqui entram as suas linhas de botões (7, 8, 9, /, etc.)
-                      // Dica: Use o seu _buildLinhaBotoes aqui
-                    ],
-                  ),
+            Expanded(
+              flex: 7,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Botão Principal de Calcular
+                    GestureDetector(
+                      onTap: _executarCalculo,
+                      child: Container(
+                        width: 250,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: _corAzulDisplay,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            )
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.play_arrow_rounded,
+                                color: Colors.white, size: 40),
+                            SizedBox(width: 10),
+                            Text(
+                              "CALCULAR",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    const Text(
+                      "O resultado será exibido em uma tabela detalhada.",
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                  ],
                 ),
               ),
+            ),
           ],
         ),
       ),
