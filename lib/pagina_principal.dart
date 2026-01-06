@@ -13,18 +13,16 @@ class PaginaTeste extends StatefulWidget {
 
 class _EstadoPaginaTeste extends State<PaginaTeste> {
   // --- Estados dos campos e navegação ---
-  // Substitua suas strings antigas por estas:
+
   final _controllerFuncao = MathFieldEditingController();
   final _controllerX0 = MathFieldEditingController();
   final _controllerAprox = MathFieldEditingController();
-
-// Variável para saber qual campo está com foco (para o efeito visual de escala)
-  String campoAtivo = 'funcao';
-
-  // Adicione os FocusNodes junto aos controladores
   final _focusFuncao = FocusNode();
   final _focusX1 = FocusNode();
   final _focusAprox = FocusNode();
+
+// Variável para saber qual campo está com foco (para o efeito visual de escala)
+  String campoAtivo = 'funcao';
 
   @override
   void initState() {
@@ -43,63 +41,9 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
 
   List<IteracaoNewton> _historico = [];
 
-  // Posições do cursor para cada campo
-  int cursorPosFuncao = 0;
-  int cursorPosX1 = 0;
-  int cursorPosAproximacao = 0;
-
-  // Controle do cursor e gaveta
-  bool _mostrarCursor = true;
-  bool _gavetaAberta = false;
-  Timer? _timerCursor;
-
   // --- Paleta de Cores e Estilo ---
   final Color _corFundoPreto = const Color(0xFF121212);
   final Color _corAzulDisplay = const Color(0xFF2D85C4);
-  final Color _corBtnNumero = const Color(0xFFE3F2FD);
-  final Color _corBtnOperador = const Color(0xFFBBDEFB);
-  final Color _corBtnX = const Color(0xFF90CAF9);
-  final Color _corBtnDelete = const Color(0xFFEF9A9A);
-  final Color _corBtnEnter = const Color(0xFFA5D6A7);
-
-  // Layouts dos teclados
-  final List<String> novoTeclado = [
-    'X',
-    '+',
-    '7',
-    '8',
-    '9',
-    '^',
-    '-',
-    '4',
-    '5',
-    '6',
-    '()',
-    '*',
-    '1',
-    '2',
-    '3',
-    '/',
-    '.',
-    '⌫',
-    '0',
-    '↵',
-  ];
-
-  final List<String> funcoesAvancadas = [
-    'sen',
-    'cos',
-    'tg',
-    'mod',
-    'csc',
-    'sec',
-    'cot',
-    '√',
-    'ln',
-    'log',
-    'e',
-    'π'
-  ];
 
   // --- Componentes do Display ---
   Widget _buildLinhaMatematica({
@@ -239,15 +183,22 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
 
   @override
   Widget build(BuildContext context) {
-    // O MathKeyboardView deve envolver o Scaffold para o teclado funcionar
+    // Verificamos se algum dos campos está com foco real
+    bool tecladoAberto =
+        _focusFuncao.hasFocus || _focusX1.hasFocus || _focusAprox.hasFocus;
+
     return MathKeyboardViewInsets(
       child: Scaffold(
+        resizeToAvoidBottomInset:
+            true, // Garante que o Scaffold reaja ao teclado
         backgroundColor: _corFundoPreto,
         body: Column(
           children: [
             // --- 1. ÁREA DO DISPLAY AZUL (Estilo GeoGebra/Photomath) ---
             Expanded(
-              flex: 5,
+              flex: tecladoAberto
+                  ? 10
+                  : 5, // Aumenta o display quando teclado abre
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
@@ -290,19 +241,20 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
             ),
 
             // --- 2. ÁREA DOS BOTÕES (Seu teclado customizado) ---
-            Expanded(
-              flex: 7,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Aqui entram as suas linhas de botões (7, 8, 9, /, etc.)
-                    // Dica: Use o seu _buildLinhaBotoes aqui
-                  ],
+            if (!tecladoAberto)
+              Expanded(
+                flex: 7,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Aqui entram as suas linhas de botões (7, 8, 9, /, etc.)
+                      // Dica: Use o seu _buildLinhaBotoes aqui
+                    ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
