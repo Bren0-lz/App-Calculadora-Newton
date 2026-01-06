@@ -8,6 +8,15 @@ class IteracaoNewton {
   IteracaoNewton(this.n, this.xn, this.fx);
 }
 
+String prepararParaCalculo(String tex) {
+  return tex
+      .replaceAll('{', '(')
+      .replaceAll('}', ')')
+      .replaceAll(r'\sin', 'sin')
+      .replaceAll(r'\cos', 'cos')
+      .replaceAll(r'\cdot', '*');
+}
+
 // Classe para retornar o resultado completo
 class ResultadoNewton {
   final String valorFinal;
@@ -17,6 +26,28 @@ class ResultadoNewton {
 }
 
 class NewtonLogic {
+  static String converterParaLatex(String texto) {
+    if (texto.isEmpty) return "";
+
+    String latex = texto;
+
+    // Substituições básicas de sintaxe
+    latex = latex.replaceAll('*', r' \cdot ');
+    latex = latex.replaceAll('x', r'x');
+
+    // Funções Trigonométricas
+    latex = latex.replaceAll('sen', r'\sin');
+    latex = latex.replaceAll('cos', r'\cos');
+    latex = latex.replaceAll('tg', r'\tan');
+
+    // Potência: transforma x^2 em x^{2}
+    // Nota: Para potências complexas, um Regex seria necessário
+    RegExp exp = RegExp(r"\^(\w+|\(.+?\))");
+    latex = latex.replaceAllMapped(exp, (match) => "^{${match.group(1)}}");
+
+    return latex;
+  }
+
   static ResultadoNewton calcularRaiz(
       String fString, String x0String, String aproxString) {
     List<IteracaoNewton> historico = [];

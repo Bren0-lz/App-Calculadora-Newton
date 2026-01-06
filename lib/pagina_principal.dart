@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'widgets/botao_calculadora.dart'; // Import do componente refatorado
 import 'logic/newton_logic.dart'; // Import da lógica de cálculo
+import 'package:math_keyboard/math_keyboard.dart';
 
 class PaginaTeste extends StatefulWidget {
   const PaginaTeste({super.key});
@@ -12,11 +13,33 @@ class PaginaTeste extends StatefulWidget {
 
 class _EstadoPaginaTeste extends State<PaginaTeste> {
   // --- Estados dos campos e navegação ---
-  String campoSelecionado = 'funcao';
-  String campoDeFuncao = '';
-  String campoDoX1 = '';
-  String campoDeAproximacao = '';
-  String resultado = '';
+  // Substitua suas strings antigas por estas:
+  final _controllerFuncao = MathFieldEditingController();
+  final _controllerX0 = MathFieldEditingController();
+  final _controllerAprox = MathFieldEditingController();
+
+// Variável para saber qual campo está com foco (para o efeito visual de escala)
+  String campoAtivo = 'funcao';
+
+  // Adicione os FocusNodes junto aos controladores
+  final _focusFuncao = FocusNode();
+  final _focusX1 = FocusNode();
+  final _focusAprox = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // Listeners para atualizar o zoom do display quando o foco mudar
+    _focusFuncao
+        .addListener(() => _atualizarFoco('funcao', _focusFuncao.hasFocus));
+    _focusX1.addListener(() => _atualizarFoco('x1', _focusX1.hasFocus));
+    _focusAprox
+        .addListener(() => _atualizarFoco('aproximacao', _focusAprox.hasFocus));
+  }
+
+  void _atualizarFoco(String id, bool temFoco) {
+    if (temFoco) setState(() => campoAtivo = id);
+  }
 
   List<IteracaoNewton> _historico = [];
 
@@ -78,11 +101,11 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
     'π'
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _iniciarCursorPiscando();
-  }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _iniciarCursorPiscando();
+  // }
 
   @override
   void dispose() {
@@ -97,168 +120,195 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
   }
 
   // --- Lógica de Interface ---
+//
+//   Color _getCorBotao(String label) {
+//     if (label == 'X') return _corBtnX;
+//     if (label == '⌫') return _corBtnDelete;
+//     if (label == '↵') return _corBtnEnter;
+//     if ('+-*/^().'.contains(label) || label == '()') return _corBtnOperador;
+//     return _corBtnNumero;
+//   }
 
-  Color _getCorBotao(String label) {
-    if (label == 'X') return _corBtnX;
-    if (label == '⌫') return _corBtnDelete;
-    if (label == '↵') return _corBtnEnter;
-    if ('+-*/^().'.contains(label) || label == '()') return _corBtnOperador;
-    return _corBtnNumero;
-  }
+//   void botaoFoiApertado(String botao) {
+//     setState(() {
+//       String textoAtual = _getTextoAtual();
+//       int pos = _getPosCursorAtual();
 
-  void botaoFoiApertado(String botao) {
-    setState(() {
-      String textoAtual = _getTextoAtual();
-      int pos = _getPosCursorAtual();
+//       if (botao == '⌫') {
+//         if (textoAtual.isNotEmpty && pos > 0) {
+//           textoAtual =
+//               textoAtual.substring(0, pos - 1) + textoAtual.substring(pos);
+//           pos--;
+//         }
+//       } else if (botao == '↵') {
+//         _navegarOuCalcular();
+//         return;
+//       } else {
+//         String inserir = (botao == 'X') ? 'x' : botao;
+//         textoAtual =
+//             textoAtual.substring(0, pos) + inserir + textoAtual.substring(pos);
+//         pos += inserir.length;
+//       }
 
-      if (botao == '⌫') {
-        if (textoAtual.isNotEmpty && pos > 0) {
-          textoAtual =
-              textoAtual.substring(0, pos - 1) + textoAtual.substring(pos);
-          pos--;
-        }
-      } else if (botao == '↵') {
-        _navegarOuCalcular();
-        return;
-      } else {
-        String inserir = (botao == 'X') ? 'x' : botao;
-        textoAtual =
-            textoAtual.substring(0, pos) + inserir + textoAtual.substring(pos);
-        pos += inserir.length;
-      }
+//       _atualizarTextoEPosicao(textoAtual, pos);
+//       resultado = ''; // Limpa resultado ao editar
+//     });
+//   }
 
-      _atualizarTextoEPosicao(textoAtual, pos);
-      resultado = ''; // Limpa resultado ao editar
-    });
-  }
+//   // Auxiliares de estado para simplificar o código
+//   String _getTextoAtual() {
+//     if (campoSelecionado == 'funcao') return campoDeFuncao;
+//     if (campoSelecionado == 'x1') return campoDoX1;
+//     return campoDeAproximacao;
+//   }
 
-  // Auxiliares de estado para simplificar o código
-  String _getTextoAtual() {
-    if (campoSelecionado == 'funcao') return campoDeFuncao;
-    if (campoSelecionado == 'x1') return campoDoX1;
-    return campoDeAproximacao;
-  }
+//   int _getPosCursorAtual() {
+//     if (campoSelecionado == 'funcao') return cursorPosFuncao;
+//     if (campoSelecionado == 'x1') return cursorPosX1;
+//     return cursorPosAproximacao;
+//   }
 
-  int _getPosCursorAtual() {
-    if (campoSelecionado == 'funcao') return cursorPosFuncao;
-    if (campoSelecionado == 'x1') return cursorPosX1;
-    return cursorPosAproximacao;
-  }
+//   void _atualizarTextoEPosicao(String novoTexto, int novaPos) {
+//     if (campoSelecionado == 'funcao') {
+//       campoDeFuncao = novoTexto;
+//       cursorPosFuncao = novaPos;
+//     } else if (campoSelecionado == 'x1') {
+//       campoDoX1 = novoTexto;
+//       cursorPosX1 = novaPos;
+//     } else {
+//       campoDeAproximacao = novoTexto;
+//       cursorPosAproximacao = novaPos;
+//     }
+//   }
 
-  void _atualizarTextoEPosicao(String novoTexto, int novaPos) {
-    if (campoSelecionado == 'funcao') {
-      campoDeFuncao = novoTexto;
-      cursorPosFuncao = novaPos;
-    } else if (campoSelecionado == 'x1') {
-      campoDoX1 = novoTexto;
-      cursorPosX1 = novaPos;
-    } else {
-      campoDeAproximacao = novoTexto;
-      cursorPosAproximacao = novaPos;
-    }
-  }
+//   void _navegarOuCalcular() {
+//     if (campoSelecionado == 'funcao') {
+//       campoSelecionado = 'x1';
+//     } else if (campoSelecionado == 'x1') {
+//       campoSelecionado = 'aproximacao';
+//     } else {
+//       // Agora recebemos o objeto completo
+//       final res = NewtonLogic.calcularRaiz(
+//           campoDeFuncao, campoDoX1, campoDeAproximacao);
+//       setState(() {
+//         resultado = res.valorFinal;
+//         _historico = res.historico;
+//       });
+//     }
+//   }
 
-  void _navegarOuCalcular() {
-    if (campoSelecionado == 'funcao') {
-      campoSelecionado = 'x1';
-    } else if (campoSelecionado == 'x1') {
-      campoSelecionado = 'aproximacao';
-    } else {
-      // Agora recebemos o objeto completo
-      final res = NewtonLogic.calcularRaiz(
-          campoDeFuncao, campoDoX1, campoDeAproximacao);
-      setState(() {
-        resultado = res.valorFinal;
-        _historico = res.historico;
-      });
-    }
-  }
+//   void _limparTudo() {
+//     setState(() {
+//       campoDeFuncao = '';
+//       campoDoX1 = '';
+//       campoDeAproximacao = '';
+//       resultado = '';
+//       _historico = []; // Limpa também a tabela de iterações
+//       cursorPosFuncao = 0;
+//       cursorPosX1 = 0;
+//       cursorPosAproximacao = 0;
+//       campoSelecionado = 'funcao'; // Volta o foco para o início
+//     });
 
-  void _limparTudo() {
-    setState(() {
-      campoDeFuncao = '';
-      campoDoX1 = '';
-      campoDeAproximacao = '';
-      resultado = '';
-      _historico = []; // Limpa também a tabela de iterações
-      cursorPosFuncao = 0;
-      cursorPosX1 = 0;
-      cursorPosAproximacao = 0;
-      campoSelecionado = 'funcao'; // Volta o foco para o início
-    });
+//     // Feedback tátil ou visual opcional
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       const SnackBar(
+//         content: Text('Sistema reiniciado!'),
+//         duration: Duration(seconds: 1),
+//       ),
+//     );
+//   }
 
-    // Feedback tátil ou visual opcional
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Sistema reiniciado!'),
-        duration: Duration(seconds: 1),
+  // --- Componentes do Display ---
+  Widget _buildLinhaMatematica({
+    required String label,
+    required MathFieldEditingController controller,
+    required FocusNode focusNode,
+    required String campoID,
+    required String hint,
+  }) {
+    bool estaAtivo = campoAtivo == campoID;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: estaAtivo ? 12 : 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(estaAtivo ? 0.9 : 0.4),
+              fontSize: 18,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(width: 15),
+          Flexible(
+            child: DefaultTextStyle(
+              // SOLUÇÃO DO 'style': O MathField herda deste estilo
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: estaAtivo ? 38 : 26,
+              ),
+              child: MathField(
+                controller: controller,
+                focusNode: focusNode, // SOLUÇÃO DO 'onTap'
+                variables: const ['x'],
+                decoration: InputDecoration(
+                  hintText: hint,
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // --- Componentes do Display ---
-
-  Widget _buildLinhaDisplay(
-      {required String label, required String valor, required String campoID}) {
-    bool estaAtivo = campoSelecionado == campoID;
-    double tamanhoFonte = estaAtivo ? 45 : 32;
-    double opacidade = estaAtivo ? 1.0 : 0.5;
-    int pos = (campoID == 'funcao')
-        ? cursorPosFuncao
-        : (campoID == 'x1')
-            ? cursorPosX1
-            : cursorPosAproximacao;
-
-    return GestureDetector(
-      onTap: () => setState(() => campoSelecionado = campoID),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-        padding:
-            EdgeInsets.symmetric(vertical: estaAtivo ? 8 : 4, horizontal: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 300),
-              style: TextStyle(
-                  color: Colors.white.withOpacity(opacidade * 0.6),
-                  fontSize: tamanhoFonte * 0.6,
-                  fontStyle: FontStyle.italic,
-                  fontFamily: 'Arial'),
-              child: Text(label),
-            ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerRight,
-                child: AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 300),
-                  style: TextStyle(
-                      color: Colors.white.withOpacity(opacidade),
-                      fontSize: tamanhoFonte,
-                      fontWeight: estaAtivo ? FontWeight.bold : FontWeight.w400,
-                      fontFamily: 'Arial'),
-                  child: Text.rich(
-                    TextSpan(children: [
-                      TextSpan(text: valor.substring(0, pos)),
-                      TextSpan(
-                          text: '|',
-                          style: TextStyle(
-                              color: (estaAtivo && _mostrarCursor)
-                                  ? Colors.white
-                                  : Colors.transparent)),
-                      TextSpan(text: valor.substring(pos)),
-                    ]),
+  Widget _buildCampoMatematico({
+    required String label,
+    required MathFieldEditingController controller,
+    String hint = "",
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+                color: Colors.blue, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              // SOLUÇÃO PARA O ESTILO: Envolver em DefaultTextStyle
+              child: DefaultTextStyle(
+                style: const TextStyle(color: Colors.white, fontSize: 22),
+                child: MathField(
+                  controller: controller,
+                  variables: const ['x'],
+                  decoration: InputDecoration(
+                    hintText: hint,
+                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
+                    border: InputBorder.none,
                   ),
+                  onChanged: (String value) {
+                    // SOLUÇÃO PARA O TEXSTRING: 'value' já é a String em formato TeX
+                    print("Fórmula em TeX: $value");
+                  },
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -327,7 +377,6 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
                             rows: _historico
                                 .map((it) => DataRow(
                                       cells: [
-                                        // Forçamos a cor branca em cada célula
                                         DataCell(Text(it.n.toString(),
                                             style: const TextStyle(
                                                 color: Colors.white))),
@@ -354,202 +403,72 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _corFundoPreto,
-      body: Column(
-        children: [
-          // --- 1. Área do DISPLAY DINÂMICO ---
-          Expanded(
-            flex: 5,
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: _corAzulDisplay,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(45),
-                  bottomRight: Radius.circular(45),
-                ),
-              ),
-              padding: const EdgeInsets.fromLTRB(28, 50, 28, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  _buildLinhaDisplay(
-                    label: "f(x) = ",
-                    valor: campoDeFuncao,
-                    campoID: 'funcao',
-                  ),
-                  _buildLinhaDisplay(
-                    label: "X0 = ",
-                    valor: campoDoX1,
-                    campoID: 'x1',
-                  ),
-                  _buildLinhaDisplay(
-                    label: "Aprox = ",
-                    valor: campoDeAproximacao,
-                    campoID: 'aproximacao',
-                  ),
-
-                  // RESULTADO INTERATIVO
-                  if (resultado.isNotEmpty) ...[
-                    const Divider(color: Colors.white24, height: 30),
-                    InkWell(
-                      onTap: () => _mostrarTabelaIteracoes(context),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            const Text(
-                              "Raiz ≈ ",
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 20,
-                                fontStyle: FontStyle.italic,
-                                fontFamily: 'Arial',
-                              ),
-                            ),
-                            Text(
-                              resultado,
-                              style: const TextStyle(
-                                color: Color(0xFFFFF176),
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Arial',
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.analytics_outlined,
-                              color: Color(0xFFFFF176),
-                              size: 24,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // --- 2. Botão da Gaveta (Seta com Glow) ---
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30.0),
-            child: Container(
-              height: 45,
-              decoration: BoxDecoration(
-                color: _corFundoPreto,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: _corAzulDisplay.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-                border: Border.all(color: _corAzulDisplay.withOpacity(0.2)),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => setState(() => _gavetaAberta = !_gavetaAberta),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Center(
-                    child: AnimatedRotation(
-                      turns: _gavetaAberta ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 300),
-                      child: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: _corAzulDisplay,
-                        size: 32,
-                      ),
-                    ),
+    // O MathKeyboardView deve envolver o Scaffold para o teclado funcionar
+    return MathKeyboardViewInsets(
+      child: Scaffold(
+        backgroundColor: _corFundoPreto,
+        body: Column(
+          children: [
+            // --- 1. ÁREA DO DISPLAY AZUL (Estilo GeoGebra/Photomath) ---
+            Expanded(
+              flex: 5,
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: _corAzulDisplay,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(45),
+                    bottomRight: Radius.circular(45),
                   ),
                 ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // --- 3. Área do Teclado e Gaveta ---
-          Expanded(
-            flex: 6,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Stack(
+                padding: const EdgeInsets.fromLTRB(28, 50, 28, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    // Teclado Principal
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
-                      child: GridView.builder(
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: novoTeclado.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 5,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 14,
-                          childAspectRatio: 1.1,
-                        ),
-                        itemBuilder: (context, index) {
-                          final label = novoTeclado[index];
-                          return BotaoCalculadora(
-                            label: label,
-                            color: _getCorBotao(label),
-                            onTap: () => botaoFoiApertado(label),
-                            // Se o botão for o de apagar, adiciona o clique longo
-                            onLongPress: label == '⌫' ? _limparTudo : null,
-                          );
-                        },
-                      ),
+                    // Dentro da sua Column no display azul:
+                    _buildLinhaMatematica(
+                      label: "f(x) = ",
+                      controller: _controllerFuncao,
+                      focusNode: _focusFuncao,
+                      campoID: 'funcao',
+                      hint: "x^2 - 4",
                     ),
-
-                    // Gaveta Animada (Funções Avançadas)
-                    ClipRect(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 350),
-                        curve: Curves.easeOutCubic,
-                        height: _gavetaAberta ? constraints.maxHeight : 0,
-                        width: double.infinity,
-                        color: _corFundoPreto,
-                        padding: const EdgeInsets.all(20.0),
-                        child: GridView.builder(
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 4,
-                            crossAxisSpacing: 14,
-                            mainAxisSpacing: 14,
-                            childAspectRatio: 1.4,
-                          ),
-                          itemCount: funcoesAvancadas.length,
-                          itemBuilder: (context, index) {
-                            final label = funcoesAvancadas[index];
-                            return BotaoCalculadora(
-                              label: label,
-                              color: _corBtnOperador.withOpacity(0.8),
-                              onTap: () {
-                                botaoFoiApertado(label);
-                                setState(() => _gavetaAberta = false);
-                              },
-                            );
-                          },
-                        ),
-                      ),
+                    _buildLinhaMatematica(
+                      label: "X0 = ",
+                      controller: _controllerX0,
+                      focusNode: _focusX1,
+                      campoID: 'x1',
+                      hint: "1.0",
+                    ),
+                    _buildLinhaMatematica(
+                      label: "Aprox = ",
+                      controller: _controllerAprox,
+                      focusNode: _focusAprox,
+                      campoID: 'aproximacao',
+                      hint: "0.001",
                     ),
                   ],
-                );
-              },
+                ),
+              ),
             ),
-          ),
-        ],
+
+            // --- 2. ÁREA DOS BOTÕES (Seu teclado customizado) ---
+            Expanded(
+              flex: 7,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Aqui entram as suas linhas de botões (7, 8, 9, /, etc.)
+                    // Dica: Use o seu _buildLinhaBotoes aqui
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
