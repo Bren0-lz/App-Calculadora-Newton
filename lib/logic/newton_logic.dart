@@ -59,10 +59,6 @@ class NewtonLogic {
       // A derivada agora é gerada diretamente da Expression recebida
       Expression derivada = exp.derive('x');
 
-      // DEBUG: Veja no console o que ele gerou como derivada
-      print("DEBUG LOGIC: Expressão original: $exp");
-      print("DEBUG LOGIC: Derivada gerada: $derivada");
-
       double xn = x0;
       int i = 0;
       while (i < 50) {

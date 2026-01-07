@@ -207,9 +207,6 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
       final double aprox =
           double.parse(TeXParser(_aproxRaw).parse().toString());
 
-      // Debug para conferirmos se agora a ordem está certa
-      print("DEBUG: Calculando f(x)=$fExpression com x0=$x0");
-
       ResultadoNewton resultado =
           NewtonLogic.calcularRaiz(fExpression, x0, aprox);
 
