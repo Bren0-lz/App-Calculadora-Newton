@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'logic/newton_logic.dart'; // Import da lógica de cálculo
 import 'package:math_keyboard/math_keyboard.dart';
 import 'package:math_expressions/math_expressions.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 
 class PaginaTeste extends StatefulWidget {
   const PaginaTeste({super.key});
@@ -20,13 +21,13 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
   final _focusX1 = FocusNode();
   final _focusAprox = FocusNode();
 
-// Variável para saber qual campo está com foco (para o efeito visual de escala)
+  // Variável para saber qual campo está com foco (para o efeito visual de escala)
   String campoAtivo = 'funcao';
 
   @override
   void initState() {
     super.initState();
-    // Listeners para atualizar o zoom do display quando o foco mudar
+    // Listener para garantir que a UI mude assim que o foco for solicitado
     _focusFuncao
         .addListener(() => _atualizarFoco('funcao', _focusFuncao.hasFocus));
     _focusX1.addListener(() => _atualizarFoco('x1', _focusX1.hasFocus));
@@ -35,7 +36,13 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
   }
 
   void _atualizarFoco(String id, bool temFoco) {
-    if (temFoco) setState(() => campoAtivo = id);
+    if (temFoco) {
+      setState(() => campoAtivo = id);
+      // Remove foco de outros campos
+      if (id != 'funcao') _focusFuncao.unfocus();
+      if (id != 'x1') _focusX1.unfocus();
+      if (id != 'aproximacao') _focusAprox.unfocus();
+    }
   }
 
   List<IteracaoNewton> _historico = [];
@@ -43,56 +50,6 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
   // --- Paleta de Cores e Estilo ---
   final Color _corFundoPreto = const Color(0xFF121212);
   final Color _corAzulDisplay = const Color(0xFF2D85C4);
-
-  // --- Componentes do Display ---
-  Widget _buildLinhaMatematica({
-    required String label,
-    required MathFieldEditingController controller,
-    required FocusNode focusNode,
-    required String campoID,
-    required String hint,
-    required Function(String) aoMudar, // Adicione este parâmetro
-  }) {
-    bool estaAtivo = campoAtivo == campoID;
-
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: estaAtivo ? 12 : 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(estaAtivo ? 0.9 : 0.4),
-              fontSize: 18,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          const SizedBox(width: 15),
-          Flexible(
-            child: DefaultTextStyle(
-              // SOLUÇÃO DO 'style': O MathField herda deste estilo
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: estaAtivo ? 38 : 26,
-              ),
-              child: MathField(
-                controller: controller,
-                focusNode: focusNode,
-                onChanged: aoMudar,
-                variables: const ['x'],
-                decoration: InputDecoration(
-                  hintText: hint,
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _mostrarTabelaIteracoes(BuildContext context) {
     showModalBottomSheet(
@@ -182,12 +139,88 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
     );
   }
 
+  Widget _buildLinhaMatematica({
+    required String label,
+    required MathFieldEditingController controller,
+    required FocusNode focusNode,
+    required String campoID,
+    required String hint,
+    required Function(String)
+        aoMudar, // Este é o parâmetro que o compilador sentiu falta
+    required String valorRaw,
+  }) {
+    bool estaAtivo = campoAtivo == campoID;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        setState(() => campoAtivo = campoID);
+        // Pequeno atraso para garantir que o widget MathField seja montado antes do foco
+        Future.delayed(
+            const Duration(milliseconds: 50), () => focusNode.requestFocus());
+      },
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: estaAtivo ? 20 : 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 90,
+              child: Text(
+                label,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(estaAtivo ? 1.0 : 0.4),
+                  fontSize: 20,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Container(
+                alignment: Alignment.centerLeft,
+                height: 50,
+                child: estaAtivo
+                    ? MathField(
+                        key: ValueKey('active_$campoID'),
+                        controller: controller,
+                        focusNode: focusNode,
+                        onChanged: aoMudar,
+                        variables: const ['x'],
+                        decoration: InputDecoration(
+                          hintText: hint,
+                          hintStyle:
+                              TextStyle(color: Colors.white.withOpacity(0.1)),
+                          border: InputBorder.none,
+                        ),
+                      )
+                    : Math.tex(
+                        // Renderiza o LaTeX nativamente (ex: x²) sem cursor
+                        valorRaw.isEmpty ? hint : valorRaw,
+                        mathStyle: MathStyle.display,
+                        textStyle: TextStyle(
+                          color: Colors.white
+                              .withOpacity(valorRaw.isEmpty ? 0.2 : 0.2),
+                          fontSize: 25,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Variáveis para guardar o texto puro (LaTeX)
   String _funcaoRaw = 'x^{2}-4';
   String _x0Raw = '1';
   String _aproxRaw = '0.001';
 
   void _executarCalculo() {
+    // Remove o foco de qualquer campo antes de processar o Newton-Raphson
+    FocusScope.of(context).unfocus();
+
     // 1. Verificação rigorosa
     if (_funcaoRaw.isEmpty ||
         _funcaoRaw == '{}' ||
@@ -257,14 +290,15 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    // Dentro da sua Column no display azul:
                     _buildLinhaMatematica(
                       label: "f(x) = ",
                       controller: _controllerFuncao,
                       focusNode: _focusFuncao,
                       campoID: 'funcao',
                       hint: "x^2 - 4",
-                      aoMudar: (val) => _funcaoRaw = val,
+                      valorRaw: _funcaoRaw,
+                      aoMudar: (val) =>
+                          setState(() => _funcaoRaw = val), // ADICIONADO
                     ),
                     _buildLinhaMatematica(
                       label: "X0 = ",
@@ -272,7 +306,9 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
                       focusNode: _focusX1,
                       campoID: 'x1',
                       hint: "1.0",
-                      aoMudar: (val) => _x0Raw = val,
+                      valorRaw: _x0Raw,
+                      aoMudar: (val) =>
+                          setState(() => _x0Raw = val), // ADICIONADO
                     ),
                     _buildLinhaMatematica(
                       label: "Aprox = ",
@@ -280,7 +316,9 @@ class _EstadoPaginaTeste extends State<PaginaTeste> {
                       focusNode: _focusAprox,
                       campoID: 'aproximacao',
                       hint: "0.001",
-                      aoMudar: (val) => _aproxRaw = val,
+                      valorRaw: _aproxRaw,
+                      aoMudar: (val) =>
+                          setState(() => _aproxRaw = val), // ADICIONADO
                     ),
                   ],
                 ),

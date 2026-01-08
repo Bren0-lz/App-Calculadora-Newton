@@ -84,7 +84,7 @@ packages:
     source: sdk
     version: "0.0.0"
   flutter_math_fork:
-    dependency: "direct overridden"
+    dependency: "direct main"
     description:
       path: "."
       ref: main
